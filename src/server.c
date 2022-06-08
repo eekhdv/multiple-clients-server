@@ -15,7 +15,7 @@ int main(void) {
 	int status, sockfd, new_fd, yes = 1; 
 	struct addrinfo *servinfo;
 	struct addrinfo hints = {
-		.ai_family = AF_UNSPEC,   // no metter iPv6 of iPv4. use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
+		.ai_family = AF_INET,   // no metter iPv6 of iPv4. use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
 		.ai_socktype = SOCK_STREAM, // make TCP type
 		.ai_flags = AI_PASSIVE, 
 	};
@@ -30,7 +30,6 @@ int main(void) {
 	 * PF_INET == AF_INET, but P is protocol and A is address. 
 	 * Difference is that Address Family (AF) might support several protocols were reffered by their Protocol Family (PF)
 	 * */
-	
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes)) {
 		perror("setsockopt");
 	}
