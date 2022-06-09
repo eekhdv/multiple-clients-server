@@ -1,18 +1,37 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <ctype.h>
+
 #include <unistd.h>
+#include <pthread.h>
 
 #define PORT "8765"
+
+FILE *datatbase;
+pthread_t thread_clients[100];
+
+void *client_connection(void *vargp) {
+	int clientfd = *(int *)vargp;
+	char buffer[65536];
+	printf("Client %d connected\n", clientfd);
+	recv(clientfd, buffer, 65536, 0);
+	printf("%s", buffer);
+
+
+	return NULL;
+}
 
 
 int main(void) {
 	int status, sockfd, new_fd, yes = 1; 
+	datatbase = fopen("./userdata.txt", "a");
 	struct addrinfo *servinfo;
 	struct addrinfo hints = {
 		.ai_family = AF_INET,   // no metter iPv6 of iPv4. use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
@@ -44,14 +63,16 @@ int main(void) {
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[65536];
 
+	int i = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
-		recv(new_fd, recv_buf, 65536, 0);
+		recv(new_fd, recv_buf, sizeof recv_buf, 0);
 		printf("%s", recv_buf);
-		close(new_fd);
+		pthread_create(&thread_clients[i++], NULL, client_connection, (void *)&new_fd);
 		sleep(1);
 	}
+	fclose(datatbase);
 	return 0;
 }

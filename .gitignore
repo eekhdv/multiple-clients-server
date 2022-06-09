@@ -1,2 +1,5 @@
 # ignore binary file
-src/server
+server
+
+# ignore userdata
+userdata.txt
