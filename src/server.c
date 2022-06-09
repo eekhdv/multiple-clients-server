@@ -24,7 +24,7 @@ void *client_connection(void *vargp) {
 		memset(buffer, 0, sizeof buffer);
 		recv(clientfd, buffer, 65536, 0);
 		if (strcmp(buffer, "exit\n") == 0) {
-			printf("Client %d disconnected", clientfd);
+			printf("Client %d disconnected\n", clientfd);
 			close(clientfd);
 			break;
 		} 
@@ -34,6 +34,7 @@ void *client_connection(void *vargp) {
 }
 
 int is_room_correct(char *buffer) {
+	printf("%s", buffer);
 	for (int i = 0; i < strlen(buffer) - 2; i++) {
 		if (!isdigit(buffer[i])) {
 			return 0;
@@ -88,14 +89,14 @@ void client_access(int sockfd) {
 		}
 		recv(new_fd, recv_buf, sizeof recv_buf, 0);
 		if (is_room_correct(recv_buf)) {
-			printf("[Connected] Client %d", new_fd);
+			printf("[Connected] Client %d\n", new_fd);
 			pthread_create(&thread_clients[i++], NULL, client_connection, (void *)&new_fd);
 		} else {
 			char *error_message = "[Error] Room number is incorrect";
 			send(new_fd, error_message, strlen(error_message), 0);
 			close(new_fd);
 		}
-		sleep(3);
+		sleep(1);
 	}
 }
 
