@@ -19,23 +19,37 @@ pthread_t thread_clients[100];
 
 void *client_connection(void *vargp) {
 	int clientfd = *(int *)vargp;
-	char buffer[65536];
-	printf("Client %d connected\n", clientfd);
-	recv(clientfd, buffer, 65536, 0);
-	printf("%s", buffer);
-
-
+	char buffer[65536] = {'\0'};
+	while (1) {
+		memset(buffer, 0, sizeof buffer);
+		recv(clientfd, buffer, 65536, 0);
+		if (strcmp(buffer, "exit\n") == 0) {
+			printf("Client %d disconnected", clientfd);
+			close(clientfd);
+			break;
+		} 
+		printf("%s", buffer);
+	}
 	return NULL;
 }
 
+int is_room_correct(char *buffer) {
+	for (int i = 0; i < strlen(buffer) - 2; i++) {
+		if (!isdigit(buffer[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
 
-int main(void) {
-	int status, sockfd, new_fd, yes = 1; 
+
+int init_server() {
+	int status, sockfd, yes = 1; 
 	datatbase = fopen("./userdata.txt", "a");
 	struct addrinfo *servinfo;
 	struct addrinfo hints = {
-		.ai_family = AF_INET,   // no metter iPv6 of iPv4. use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
-		.ai_socktype = SOCK_STREAM, // make TCP type
+		.ai_family = AF_INET,   // use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
+		.ai_socktype = SOCK_STREAM, // use TCP type
 		.ai_flags = AI_PASSIVE, 
 	};
 	if ((status = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
@@ -59,6 +73,14 @@ int main(void) {
 	if (listen(sockfd, 10) < 0) {
 		perror("listen");
 	}
+	return sockfd;
+}
+
+
+int main(void) {
+	int sockfd = init_server();
+	int new_fd;
+
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[65536];
@@ -69,9 +91,15 @@ int main(void) {
 			perror("accept");
 		}
 		recv(new_fd, recv_buf, sizeof recv_buf, 0);
-		printf("%s", recv_buf);
-		pthread_create(&thread_clients[i++], NULL, client_connection, (void *)&new_fd);
-		sleep(1);
+		if (is_room_correct(recv_buf)) {
+			printf("[Connected] Client %d", new_fd);
+			pthread_create(&thread_clients[i++], NULL, client_connection, (void *)&new_fd);
+		} else {
+			char *error_message = "[Error] Room number is incorrect";
+			send(new_fd, error_message, strlen(error_message), 0);
+			close(new_fd);
+		}
+		sleep(3);
 	}
 	fclose(datatbase);
 	return 0;
