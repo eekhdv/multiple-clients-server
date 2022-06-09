@@ -14,7 +14,7 @@
 
 #define PORT "8765"
 
-FILE *datatbase;
+FILE *database;
 pthread_t thread_clients[100];
 
 void *client_connection(void *vargp) {
@@ -45,7 +45,6 @@ int is_room_correct(char *buffer) {
 
 int init_server() {
 	int status, sockfd, yes = 1; 
-	datatbase = fopen("./userdata.txt", "a");
 	struct addrinfo *servinfo;
 	struct addrinfo hints = {
 		.ai_family = AF_INET,   // use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
@@ -76,15 +75,12 @@ int init_server() {
 	return sockfd;
 }
 
-
-int main(void) {
-	int sockfd = init_server();
-	int new_fd;
-
+void client_access(int sockfd) {
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[65536];
 
+	int new_fd;
 	int i = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
@@ -101,6 +97,14 @@ int main(void) {
 		}
 		sleep(3);
 	}
-	fclose(datatbase);
+}
+
+int main(void) {
+	database = fopen("./userdata.txt", "a");
+	int sockfd = init_server();
+
+	client_access(sockfd);
+
+	fclose(database);
 	return 0;
 }
