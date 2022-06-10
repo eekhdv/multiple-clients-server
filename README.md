@@ -10,4 +10,6 @@ make
 ```
 nc 127.0.0.1 8765
 ```
-after connection you need to write a room number (int)
+after connection you need to write a 
+> room number (int)
+> username (char set)
