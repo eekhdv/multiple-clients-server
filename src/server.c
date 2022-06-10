@@ -27,6 +27,7 @@
 #include <pthread.h>
 
 #define PORT "8765"
+#define BUFFER_SIZE 65536
 
 
 FILE *database;
@@ -37,16 +38,15 @@ typedef struct {
 	int sockfd;
 } USER_INFO;
 
-
 void *client_connection(void *vargp) {
-	USER_INFO *user = vargp;
-	char buffer[65536] = {'\0'};
+	USER_INFO user = *(USER_INFO *)vargp;
+	char buffer[BUFFER_SIZE] = {'\0'};
 	while (1) {
-		memset(buffer, 0, sizeof buffer);
-		recv(user->sockfd, buffer, 65536, 0);
+		memset(buffer, 0, BUFFER_SIZE);
+		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
 		if (strcmp(buffer, "exit\n") == 0) {
-			printf("[Disconnected] Client(%d) %s \n", user->sockfd, user->username);
-			close(user->sockfd);
+			printf("[Disconnected] Client(%d) %s \n", user.sockfd, user.username);
+			close(user.sockfd);
 			break;
 		} 
 		printf("%s", buffer);
@@ -55,7 +55,6 @@ void *client_connection(void *vargp) {
 }
 
 int is_room_correct(char *buffer) {
-	printf("%s", buffer);
 	for (int i = 0; i < strlen(buffer) - 2; i++) {
 		if (!isdigit(buffer[i])) {
 			return 0;
@@ -97,18 +96,21 @@ int init_server() {
 	return sockfd;
 }
 
-void init_user(USER_INFO user, int sockfd, int room_number, char *username) {
-	// user.sockfd = sockfd;
-	// user.room_number = room_number;
-	// strcpy(user.username, username);
-	// user.username[strlen(username) - 1] = '\0';
-	return;
+USER_INFO init_user(int sockfd, int room_number, char *username) {
+	USER_INFO user = {
+		.sockfd = sockfd,
+		.room_number = room_number,
+	};
+	strcpy(user.username, username);
+	user.username[strlen(username) - 1] = '\0';
+	return user;
 }
+
 
 void client_access(int sockfd) {
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
-	char recv_buf[65536];
+	char recv_buf[BUFFER_SIZE];
 	USER_INFO user[100];
 
 	int new_fd;
@@ -117,13 +119,17 @@ void client_access(int sockfd) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
-		recv(new_fd, recv_buf, sizeof recv_buf, 0);
+		memset(recv_buf, 0, BUFFER_SIZE);
+		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
 		if (is_room_correct(recv_buf)) {
 			int room_number = atoi(recv_buf);
-			memset(recv_buf, 0, sizeof recv_buf);
-			recv(new_fd, recv_buf, sizeof recv_buf, 0);
-			init_user(user[i], new_fd, room_number, recv_buf);
-			pthread_create(&thread_clients[i++], NULL, client_connection, user);
+			char username[20] = {'\0'};
+			recv(new_fd, username, 20, 0);
+			user[i] = init_user(new_fd, room_number, username);
+			printf("[Connected] Client(%d) %s\n",
+					user[i].sockfd, user[i].username);
+			pthread_create(&thread_clients[i], NULL, client_connection, &(user[i]));
+			i++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
 			send(new_fd, error_message, strlen(error_message), 0);
