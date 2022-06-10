@@ -21,22 +21,17 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <ctype.h>
 
 #include <unistd.h>
 #include <pthread.h>
 
+#include "server.h"
+#include "utils.h"
+
 #define PORT "8765"
 #define BUFFER_SIZE 65536
 
-
-FILE *database;
 pthread_t thread_clients[100];
-typedef struct {
-	char username[20];
-	int room_number;
-	int sockfd;
-} USER_INFO;
 
 void *client_connection(void *vargp) {
 	USER_INFO user = *(USER_INFO *)vargp;
@@ -45,7 +40,7 @@ void *client_connection(void *vargp) {
 		memset(buffer, 0, BUFFER_SIZE);
 		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
 		if (strcmp(buffer, "exit\n") == 0) {
-			printf("[Disconnected] Client(%d) %s \n", user.sockfd, user.username);
+			printf("[Disconnected] Client(%d) %s\n", user.sockfd, user.username);
 			close(user.sockfd);
 			break;
 		} 
@@ -53,16 +48,6 @@ void *client_connection(void *vargp) {
 	}
 	pthread_exit(NULL);
 }
-
-int is_room_correct(char *buffer) {
-	for (int i = 0; i < strlen(buffer) - 2; i++) {
-		if (!isdigit(buffer[i])) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
 
 int init_server() {
 	int status, sockfd, yes = 1; 
@@ -139,10 +124,3 @@ void client_access(int sockfd) {
 	}
 }
 
-int main(void) {
-	int sockfd = init_server();
-
-	client_access(sockfd);
-
-	return 0;
-}
