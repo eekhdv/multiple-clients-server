@@ -1,5 +1,4 @@
 /* Copyright 2022 Khadiev Edem
- * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -22,42 +21,33 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <ctype.h>
 
 #include <unistd.h>
 #include <pthread.h>
 
-#define PORT "8765"
+#include "server.h"
+#include "utils.h"
 
-FILE *database;
+#define PORT "8765"
+#define BUFFER_SIZE 65536
+
 pthread_t thread_clients[100];
 
 void *client_connection(void *vargp) {
-	int clientfd = *(int *)vargp;
-	char buffer[65536] = {'\0'};
+	USER_INFO user = *(USER_INFO *)vargp;
+	char buffer[BUFFER_SIZE] = {'\0'};
 	while (1) {
-		memset(buffer, 0, sizeof buffer);
-		recv(clientfd, buffer, 65536, 0);
+		memset(buffer, 0, BUFFER_SIZE);
+		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
 		if (strcmp(buffer, "exit\n") == 0) {
-			printf("Client %d disconnected\n", clientfd);
-			close(clientfd);
+			printf("[Disconnected] Client(%d) %s\n", user.sockfd, user.username);
+			close(user.sockfd);
 			break;
 		} 
 		printf("%s", buffer);
 	}
-	return NULL;
+	pthread_exit(NULL);
 }
-
-int is_room_correct(char *buffer) {
-	printf("%s", buffer);
-	for (int i = 0; i < strlen(buffer) - 2; i++) {
-		if (!isdigit(buffer[i])) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
 
 int init_server() {
 	int status, sockfd, yes = 1; 
@@ -91,10 +81,22 @@ int init_server() {
 	return sockfd;
 }
 
+USER_INFO init_user(int sockfd, int room_number, char *username) {
+	USER_INFO user = {
+		.sockfd = sockfd,
+		.room_number = room_number,
+	};
+	strcpy(user.username, username);
+	user.username[strlen(username) - 1] = '\0';
+	return user;
+}
+
+
 void client_access(int sockfd) {
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
-	char recv_buf[65536];
+	char recv_buf[BUFFER_SIZE];
+	USER_INFO user[100];
 
 	int new_fd;
 	int i = 0;
@@ -102,12 +104,19 @@ void client_access(int sockfd) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
-		recv(new_fd, recv_buf, sizeof recv_buf, 0);
+		memset(recv_buf, 0, BUFFER_SIZE);
+		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
 		if (is_room_correct(recv_buf)) {
-			printf("[Connected] Client %d\n", new_fd);
-			pthread_create(&thread_clients[i++], NULL, client_connection, (void *)&new_fd);
+			int room_number = atoi(recv_buf);
+			char username[20] = {'\0'};
+			recv(new_fd, username, 20, 0);
+			user[i] = init_user(new_fd, room_number, username);
+			printf("[Connected] Client(%d) %s\n",
+					user[i].sockfd, user[i].username);
+			pthread_create(&thread_clients[i], NULL, client_connection, &(user[i]));
+			i++;
 		} else {
-			char *error_message = "[Error] Room number is incorrect";
+			char *error_message = "[Error] Room number is incorrect\n";
 			send(new_fd, error_message, strlen(error_message), 0);
 			close(new_fd);
 		}
@@ -115,12 +124,3 @@ void client_access(int sockfd) {
 	}
 }
 
-int main(void) {
-	database = fopen("./userdata.txt", "a");
-	int sockfd = init_server();
-
-	client_access(sockfd);
-
-	fclose(database);
-	return 0;
-}

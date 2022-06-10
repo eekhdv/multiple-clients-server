@@ -1,5 +1,5 @@
 # ignore binary file
-server
+app
 
 # ignore userdata
 userdata.txt
