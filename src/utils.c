@@ -18,7 +18,7 @@
 #include "utils.h"
 
 int is_room_correct(char *buffer) {
-	for (int i = 0; i < strlen(buffer) - 2; i++) {
+	for (size_t i = 0; i < strlen(buffer) - 2; i++) {
 		if (!isdigit(buffer[i])) {
 			return 0;
 		}
