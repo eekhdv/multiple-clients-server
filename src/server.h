@@ -19,7 +19,10 @@ typedef struct {
 } USER_INFO;
 
 void *client_connection(void *vargp);
+void client_close(int sockfd);
 void client_access(int sockfd);
+
+void sendtoroom(char *message, int room_number);
 
 int init_server();
 USER_INFO init_user(int sockfd, int room_number, char *username);

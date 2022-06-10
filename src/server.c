@@ -30,8 +30,10 @@
 
 #define PORT "8765"
 #define BUFFER_SIZE 65536
+#define MAX_CLIENTS 100
 
-pthread_t thread_clients[100];
+pthread_t thread_clients[MAX_CLIENTS];
+USER_INFO users[MAX_CLIENTS];
 
 void *client_connection(void *vargp) {
 	USER_INFO user = *(USER_INFO *)vargp;
@@ -40,10 +42,10 @@ void *client_connection(void *vargp) {
 		memset(buffer, 0, BUFFER_SIZE);
 		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
 		if (strcmp(buffer, "exit\n") == 0) {
-			printf("[Disconnected] Client(%d) %s\n", user.sockfd, user.username);
-			close(user.sockfd);
+			client_close(user.sockfd);
 			break;
 		} 
+		sendtoroom(buffer, user.room_number);
 		printf("%s", buffer);
 	}
 	pthread_exit(NULL);
@@ -96,7 +98,6 @@ void client_access(int sockfd) {
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[BUFFER_SIZE];
-	USER_INFO user[100];
 
 	int new_fd;
 	int i = 0;
@@ -110,10 +111,10 @@ void client_access(int sockfd) {
 			int room_number = atoi(recv_buf);
 			char username[20] = {'\0'};
 			recv(new_fd, username, 20, 0);
-			user[i] = init_user(new_fd, room_number, username);
+			users[i] = init_user(new_fd, room_number, username);
 			printf("[Connected] Client(%d) %s\n",
-					user[i].sockfd, user[i].username);
-			pthread_create(&thread_clients[i], NULL, client_connection, &(user[i]));
+					users[i].sockfd, users[i].username);
+			pthread_create(&thread_clients[i], NULL, client_connection, &(users[i]));
 			i++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
@@ -124,3 +125,17 @@ void client_access(int sockfd) {
 	}
 }
 
+void client_close(int sockfd) {
+	for (int i = 0; i < 100; i++) {
+		if (users[i].sockfd == sockfd) {
+			users[i].sockfd = -1;
+			printf("[Disconnected] Client(%d) %s\n", users[i].sockfd, users[i].username);
+			break;
+		}
+	}
+	close(sockfd);
+}
+
+void sendtoroom(char *message, int room_number) {
+
+}
