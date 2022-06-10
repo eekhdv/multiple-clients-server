@@ -144,5 +144,9 @@ void client_close(int sockfd) {
 }
 
 void sendtoroom(char *message, int room_number) {	
-
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (users[i].room_number == room_number && users[i].sockfd != -1) {
+			send(users[i].sockfd, message, BUFFER_SIZE, 0);
+		}
+	}
 }
