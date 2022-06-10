@@ -3,8 +3,8 @@ My attempt to create a server implementation using C
 
 ## How to use
 ```
-gcc src/server.c -lpthread -o server
-./client
+make
+./app
 ```
 ### Connect to the server as a client using netcat
 ```
