@@ -90,7 +90,7 @@ USER_INFO init_user(int sockfd, int room_number, char *username) {
 		.room_number = room_number,
 	};
 	strcpy(user.username, username);
-	user.username[strlen(username) - 2] = '\0';
+	user.username[strlen(username) - 1] = '\0';
 	return user;
 }
 
@@ -117,11 +117,15 @@ void client_access(int sockfd) {
 			perror("accept");
 		}
 		sem_wait(&x);
+		char askroom[] = "Enter room number: ";
+		send(new_fd, askroom, strlen(askroom), 0);
 		memset(recv_buf, 0, BUFFER_SIZE);
 		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
 		if (is_room_correct(recv_buf)) {
 			int room_number = atoi(recv_buf);
 			char username[20] = {'\0'};
+			char askusername[] = "Enter your username: ";
+			send(new_fd, askusername, strlen(askusername), 0);
 			recv(new_fd, username, 20, 0);
 			users[i] = init_user(new_fd, room_number, username);
 			printf("[Connected] Client(%d) %s\n",
