@@ -9,9 +9,9 @@ make && ./app
 ```
 nc 127.0.0.1 8765
 ```
-> You can create multiple connections using netcat
 Once connected, the server will ask you for:
 - room number (int)
 - username (char set)
+> You can create multiple connections using netcat
 ### Disconnect from the server
 Send '/exit'
