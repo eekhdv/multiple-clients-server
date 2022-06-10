@@ -13,4 +13,4 @@ Once connected, the server will wait:
 - room number (int)
 - username (char set)
 ### Disconnect from the server
-Send 'exit' from client
+Send '/exit'
