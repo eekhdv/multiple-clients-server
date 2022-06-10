@@ -3,11 +3,14 @@ My attempt to create a server implementation using C
 
 ## How to use
 ```
-make
-./app
+make && ./app
 ```
 ### Connect to the server as a client using netcat
 ```
 nc 127.0.0.1 8765
 ```
-after connection you need to write a room number (int)
+Once connected, the server will wait:
+- room number (int)
+- username (char set)
+### Disconnect from the server
+Send 'exit' from client
