@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 #include "server.h"
 #include "utils.h"
@@ -32,6 +33,7 @@
 #define BUFFER_SIZE 65536
 #define MAX_CLIENTS 100
 
+sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
 
@@ -106,12 +108,15 @@ void client_access(int sockfd) {
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[BUFFER_SIZE];
 
+	sem_init(&x, 0, 1);
+
 	int new_fd;
 	int i = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
+		sem_wait(&x);
 		memset(recv_buf, 0, BUFFER_SIZE);
 		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
 		if (is_room_correct(recv_buf)) {
@@ -123,6 +128,7 @@ void client_access(int sockfd) {
 					users[i].sockfd, users[i].username);
 			pthread_create(&thread_clients[i], NULL, client_connection, &(users[i]));
 			sendtoroom("<- connected to the room ...\n", users[i].username, room_number, new_fd);
+			sem_post(&x);
 			i++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
