@@ -41,12 +41,11 @@ void *client_connection(void *vargp) {
 	while (1) {
 		memset(buffer, 0, BUFFER_SIZE);
 		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
-		if (strcmp(buffer, "exit\n") == 0) {
+		if (strcmp(buffer, "/exit\n") == 0) {
 			client_close(user.sockfd);
 			break;
 		} 
-		sendtoroom(buffer, user.room_number);
-		printf("%s", buffer);
+		sendtoroom(buffer, user.username, user.room_number, user.sockfd);
 	}
 	pthread_exit(NULL);
 }
@@ -89,13 +88,14 @@ USER_INFO init_user(int sockfd, int room_number, char *username) {
 		.room_number = room_number,
 	};
 	strcpy(user.username, username);
-	user.username[strlen(username) - 1] = '\0';
+	user.username[strlen(username) - 2] = '\0';
 	return user;
 }
 
 void init_users() {
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		users[i].sockfd = -1;
+		memset(users[i].username, 0, 20);
 	}
 }
 
@@ -122,6 +122,7 @@ void client_access(int sockfd) {
 			printf("[Connected] Client(%d) %s\n",
 					users[i].sockfd, users[i].username);
 			pthread_create(&thread_clients[i], NULL, client_connection, &(users[i]));
+			sendtoroom("<- connected to the room ...\n", users[i].username, room_number, new_fd);
 			i++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
@@ -136,17 +137,23 @@ void client_close(int sockfd) {
 	for (int i = 0; i < 100; i++) {
 		if (users[i].sockfd == sockfd) {
 			users[i].sockfd = -1;
-			printf("[Disconnected] Client(%d) %s\n", users[i].sockfd, users[i].username);
+			printf("[Disconnected] Client(%d) %s\n", sockfd, users[i].username);
+			sendtoroom("<- left the room ...\n", users[i].username, users[i].room_number, sockfd);
 			break;
 		}
 	}
 	close(sockfd);
 }
 
-void sendtoroom(char *message, int room_number) {	
+void sendtoroom(char *message, char *sendername, int room_number, int sendersfd) {	
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		if (users[i].room_number == room_number && users[i].sockfd != -1) {
-			send(users[i].sockfd, message, BUFFER_SIZE, 0);
+		if (users[i].room_number == room_number && users[i].sockfd != -1 && users[i].sockfd != sendersfd) {
+			char senders_name[30] = {'\0'};
+			senders_name[0] = '[';
+			strcat(senders_name, sendername);
+			strcat(senders_name, "] ");
+			send(users[i].sockfd, senders_name, strlen(senders_name), 0);
+			send(users[i].sockfd, message, strlen(message), 0);
 		}
 	}
 }

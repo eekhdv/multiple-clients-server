@@ -22,7 +22,7 @@ void *client_connection(void *vargp);
 void client_close(int sockfd);
 void client_access(int sockfd);
 
-void sendtoroom(char *message, int room_number);
+void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
 
 int init_server();
 void init_users();
