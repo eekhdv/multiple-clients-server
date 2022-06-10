@@ -10,5 +10,5 @@ make && ./app
 nc 127.0.0.1 8765
 ```
 Once connected, the server will wait:
--room number (int)
--username (char set)
+- room number (int)
+- username (char set)
