@@ -25,4 +25,5 @@ void client_access(int sockfd);
 void sendtoroom(char *message, int room_number);
 
 int init_server();
+void init_users();
 USER_INFO init_user(int sockfd, int room_number, char *username);

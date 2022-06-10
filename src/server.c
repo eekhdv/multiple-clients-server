@@ -93,8 +93,15 @@ USER_INFO init_user(int sockfd, int room_number, char *username) {
 	return user;
 }
 
+void init_users() {
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		users[i].sockfd = -1;
+	}
+}
 
 void client_access(int sockfd) {
+	init_users();
+
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
 	char recv_buf[BUFFER_SIZE];
@@ -136,6 +143,6 @@ void client_close(int sockfd) {
 	close(sockfd);
 }
 
-void sendtoroom(char *message, int room_number) {
+void sendtoroom(char *message, int room_number) {	
 
 }
