@@ -32,10 +32,12 @@
 #define PORT "8765"
 #define BUFFER_SIZE 65536
 #define MAX_CLIENTS 100
+#define MAX_ROOMS 100
 
 sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
+ROOM rooms[MAX_ROOMS];
 
 void *client_connection(void *vargp) {
 	USER_INFO user = *(USER_INFO *)vargp;
@@ -101,8 +103,21 @@ void init_users() {
 	}
 }
 
+void init_rooms() {
+	for (int i = 0; i < MAX_ROOMS; i++) {
+		rooms[i].room_number = rooms[i].users_limit = -1;
+	}
+}
+
+void ask_username(int sockfd, char username[20]) {
+	char askusername[] = "Enter your username: ";
+	send(sockfd, askusername, strlen(askusername), 0);
+	recv(sockfd, username, 20, 0);
+}
+
 void client_access(int sockfd) {
 	init_users();
+	init_rooms();
 
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
@@ -111,7 +126,8 @@ void client_access(int sockfd) {
 	sem_init(&x, 0, 1);
 
 	int new_fd;
-	int i = 0;
+	int usr = 0;
+	int roo = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
@@ -124,16 +140,14 @@ void client_access(int sockfd) {
 		if (is_room_correct(recv_buf)) {
 			int room_number = atoi(recv_buf);
 			char username[20] = {'\0'};
-			char askusername[] = "Enter your username: ";
-			send(new_fd, askusername, strlen(askusername), 0);
-			recv(new_fd, username, 20, 0);
-			users[i] = init_user(new_fd, room_number, username);
+			ask_username(new_fd, username);
+			users[usr] = init_user(new_fd, room_number, username);
 			printf("[Connected] Client(%d) %s\n",
-					users[i].sockfd, users[i].username);
-			pthread_create(&thread_clients[i], NULL, client_connection, &(users[i]));
-			sendtoroom("<- connected to the room ...\n", users[i].username, room_number, new_fd);
+					users[usr].sockfd, users[usr].username);
+			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
+			sendtoroom("<- connected to the room ...\n", users[usr].username, room_number, new_fd);
 			sem_post(&x);
-			i++;
+			usr++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
 			send(new_fd, error_message, strlen(error_message), 0);
