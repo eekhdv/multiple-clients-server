@@ -21,6 +21,7 @@ typedef struct {
 typedef struct {
 	unsigned long long room_number;
 	int users_limit;
+	int members_num;
 } ROOM;
 
 #define PORT "8765"
@@ -39,6 +40,9 @@ void ask_username(int sockfd, char username[20]);
 int ask_limit(int room, int sockfd);
 int create_room(unsigned long long room_number, int sockfd);
 
+int get_room_id(int room_number);
+int get_client_id(int sockfd);
+	
 int init_server();
 void init_users();
 void init_rooms();

@@ -100,6 +100,7 @@ void init_users() {
 void init_rooms() {
 	for (int i = 0; i < MAX_ROOMS; i++) {
 		rooms[i].room_number = rooms[i].users_limit = -1;
+		rooms[i].members_num = 0;
 	}
 }
 
@@ -120,15 +121,14 @@ int ask_limit(int room, int sockfd) {
 	recv(sockfd, room_limit, 3, 0);
 	if (is_uint(room_limit)) {
 		rooms[room].users_limit = atoi(room_limit);
+		return 1;
 	} else {
 		char *error_message = "[Error] Max number is incorrect\n";
 		send(sockfd, error_message, strlen(error_message), 0);
 		close(sockfd);
 		return 0;
 	}
-	return 1;
 }
-
 
 int create_room(unsigned long long room_number, int sockfd) {
 	int room_place = -1;
@@ -168,15 +168,33 @@ void client_access(int sockfd) {
 	}
 }
 
-void client_close(int sockfd) {
+int get_room_id(int room_number) {
+	for (int i = 0; i < MAX_ROOMS; i++) {
+		if ((int)rooms[i].room_number == room_number) {
+			return i;
+		} 
+	}
+	return -1;
+}
+
+int get_client_id(int sockfd) {
 	for (int i = 0; i < 100; i++) {
 		if (users[i].sockfd == sockfd) {
-			users[i].sockfd = -1;
-			printf("[Disconnected] Client(%d) %s\n", sockfd, users[i].username);
-			sendtoroom("<- left the room ...\n", users[i].username, users[i].room_number, sockfd);
-			break;
+			return i;
 		}
 	}
+	return -1;
+}
+
+void client_close(int sockfd) {
+	int client_id = get_client_id(sockfd);
+	users[client_id].sockfd = -1;
+	int room_id = get_room_id(users[client_id].room_number);
+	rooms[room_id].members_num--;
+	printf("[Disconnected] Client(%d) %s\n", sockfd, users[client_id].username);
+	printf("[ROOM] %llu : %d/%d\n", rooms[room_id].room_number, 
+			rooms[room_id].members_num, rooms[room_id].users_limit);
+	sendtoroom("<- left the room ...\n", users[client_id].username, users[client_id].room_number, sockfd);
 	close(sockfd);
 }
 
@@ -209,10 +227,11 @@ void* start_user_thread(void *vargp) {
 
 			ask_username(new_fd, username);
 			users[usr] = init_user(new_fd, rooms[roo].room_number, username);
+			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
+			rooms[roo].members_num++;
 			printf("[Connected] Client(%d) %s\n",
 					users[usr].sockfd, users[usr].username);
-
-			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
+			printf("[ROOM] %llu : %d/%d\n", rooms[roo].room_number, rooms[roo].members_num, rooms[roo].users_limit);
 			sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
 
 			usr++;
