@@ -29,12 +29,14 @@ typedef struct {
 #define MAX_ROOMS 100
 
 void *client_connection(void *vargp);
+void *start_user_thread(void *vargp);
 void client_close(int sockfd);
 void client_access(int sockfd);
 
 void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
+int ask_limit(int room, int sockfd);
 int create_room(unsigned long long room_number, int sockfd);
 
 int init_server();

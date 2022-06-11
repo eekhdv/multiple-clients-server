@@ -33,6 +33,7 @@ sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
 ROOM rooms[MAX_ROOMS];
+int usr;
 
 void *client_connection(void *vargp) {
 	USER_INFO user = *(USER_INFO *)vargp;
@@ -154,45 +155,19 @@ void client_access(int sockfd) {
 
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
-	char recv_buf[BUFFER_SIZE];
 
 	sem_init(&x, 0, 1);
 
 	int new_fd;
-	int usr = 0;
+	int start_usr = 0;
+	pthread_t thread_start_user[MAX_CLIENTS];
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
+			continue;
 		}
+		pthread_create(&thread_start_user[start_usr++], NULL, start_user_thread, &(new_fd));
 
-		sem_wait(&x);
-		char askroom[] = "Enter room number: ";
-		send(new_fd, askroom, strlen(askroom), 0);
-		memset(recv_buf, 0, BUFFER_SIZE);
-		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
-		if (is_uint(recv_buf)) {
-			int roo = create_room(atoi(recv_buf), new_fd);
-			printf("%d", roo);
-			if (roo == -1) {
-				continue;
-			}
-			char username[20] = {'\0'};
-
-			ask_username(new_fd, username);
-			users[usr] = init_user(new_fd, rooms[roo].room_number, username);
-			printf("[Connected] Client(%d) %s\n",
-					users[usr].sockfd, users[usr].username);
-
-			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
-			sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
-			sem_post(&x);
-
-			usr++;
-		} else {
-			char *error_message = "[Error] Room number is incorrect\n";
-			send(new_fd, error_message, strlen(error_message), 0);
-			close(new_fd);
-		}
 		sleep(1);
 	}
 }
@@ -220,4 +195,35 @@ void sendtoroom(char *message, char *sendername, int room_number, int sendersfd)
 			send(users[i].sockfd, message, strlen(message), 0);
 		}
 	}
+}
+
+void* start_user_thread(void *vargp) {
+		int new_fd = *(int *)vargp;
+		char recv_buf[BUFFER_SIZE];
+		char askroom[] = "Enter room number: ";
+		send(new_fd, askroom, strlen(askroom), 0);
+		memset(recv_buf, 0, BUFFER_SIZE);
+		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
+		if (is_uint(recv_buf)) {
+			int roo = create_room(atoi(recv_buf), new_fd);
+			if (roo == -1) {
+				pthread_exit(NULL);
+			}
+			char username[20] = {'\0'};
+
+			ask_username(new_fd, username);
+			users[usr] = init_user(new_fd, rooms[roo].room_number, username);
+			printf("[Connected] Client(%d) %s\n",
+					users[usr].sockfd, users[usr].username);
+
+			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
+			sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
+
+			usr++;
+		} else {
+			char *error_message = "[Error] Room number is incorrect\n";
+			send(new_fd, error_message, strlen(error_message), 0);
+			close(new_fd);
+		}
+		pthread_exit(NULL);
 }
