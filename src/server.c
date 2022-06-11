@@ -115,6 +115,22 @@ void ask_username(int sockfd, char username[20]) {
 	recv(sockfd, username, 20, 0);
 }
 
+
+int create_room(unsigned long long room_number) {
+	int room_place = -1;
+	for (int i = 0; i < MAX_ROOMS; i++) {
+		if (rooms[i].room_number == room_number) {
+			return i;
+		} else {
+			if (room_place == rooms[i].room_number) {
+				room_place = i;
+				rooms[i].room_number = room_number;
+			}
+		}
+	}
+	return room_place;
+}
+
 void client_access(int sockfd) {
 	init_users();
 	init_rooms();
@@ -127,7 +143,6 @@ void client_access(int sockfd) {
 
 	int new_fd;
 	int usr = 0;
-	int roo = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
@@ -138,15 +153,18 @@ void client_access(int sockfd) {
 		memset(recv_buf, 0, BUFFER_SIZE);
 		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
 		if (is_room_correct(recv_buf)) {
-			int room_number = atoi(recv_buf);
+			int roo = create_room(atoi(recv_buf));
 			char username[20] = {'\0'};
+
 			ask_username(new_fd, username);
-			users[usr] = init_user(new_fd, room_number, username);
+			users[usr] = init_user(new_fd, rooms[roo].room_number, username);
 			printf("[Connected] Client(%d) %s\n",
 					users[usr].sockfd, users[usr].username);
+
 			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
-			sendtoroom("<- connected to the room ...\n", users[usr].username, room_number, new_fd);
+			sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
 			sem_post(&x);
+
 			usr++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";

@@ -30,6 +30,7 @@ void client_access(int sockfd);
 void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
+int create_room(unsigned long long room_number);
 
 int init_server();
 void init_users();
