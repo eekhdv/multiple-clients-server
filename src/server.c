@@ -29,11 +29,6 @@
 #include "server.h"
 #include "utils.h"
 
-#define PORT "8765"
-#define BUFFER_SIZE 65536
-#define MAX_CLIENTS 100
-#define MAX_ROOMS 100
-
 sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
@@ -115,18 +110,40 @@ void ask_username(int sockfd, char username[20]) {
 	recv(sockfd, username, 20, 0);
 }
 
+int ask_limit(int room, int sockfd) {
+	char new_room_wow[] = "Wow! There doesn't seem to be such a room! I'll create one...\n";
+	send(sockfd, new_room_wow, strlen(new_room_wow), 0);
 
-int create_room(unsigned long long room_number) {
+	char asklim[] = "Enter the max number of members in the room (max 999): ";
+	send(sockfd, asklim, strlen(asklim), 0);
+
+	char room_limit[3] = {'\0'};
+	recv(sockfd, room_limit, 3, 0);
+	if (is_uint(room_limit)) {
+		rooms[room].users_limit = atoi(room_limit);
+	} else {
+		char *error_message = "[Error] Max number is incorrect\n";
+		send(sockfd, error_message, strlen(error_message), 0);
+		close(sockfd);
+		return 0;
+	}
+	return 1;
+}
+
+
+int create_room(unsigned long long room_number, int sockfd) {
 	int room_place = -1;
 	for (int i = 0; i < MAX_ROOMS; i++) {
 		if (rooms[i].room_number == room_number) {
 			return i;
-		} else {
-			if (room_place == rooms[i].room_number) {
-				room_place = i;
-				rooms[i].room_number = room_number;
-			}
+		} 
+		if (room_place == (int)rooms[i].room_number) {
+			room_place = i;
+			rooms[i].room_number = room_number;
 		}
+	}
+	if (!ask_limit(room_place, sockfd)) {
+		return -1;
 	}
 	return room_place;
 }
@@ -147,13 +164,18 @@ void client_access(int sockfd) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
+
 		sem_wait(&x);
 		char askroom[] = "Enter room number: ";
 		send(new_fd, askroom, strlen(askroom), 0);
 		memset(recv_buf, 0, BUFFER_SIZE);
 		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
-		if (is_room_correct(recv_buf)) {
-			int roo = create_room(atoi(recv_buf));
+		if (is_uint(recv_buf)) {
+			int roo = create_room(atoi(recv_buf), new_fd);
+			printf("%d", roo);
+			if (roo == -1) {
+				continue;
+			}
 			char username[20] = {'\0'};
 
 			ask_username(new_fd, username);

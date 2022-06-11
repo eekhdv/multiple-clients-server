@@ -23,6 +23,11 @@ typedef struct {
 	int users_limit;
 } ROOM;
 
+#define PORT "8765"
+#define BUFFER_SIZE 65536
+#define MAX_CLIENTS 100
+#define MAX_ROOMS 100
+
 void *client_connection(void *vargp);
 void client_close(int sockfd);
 void client_access(int sockfd);
@@ -30,7 +35,7 @@ void client_access(int sockfd);
 void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
-int create_room(unsigned long long room_number);
+int create_room(unsigned long long room_number, int sockfd);
 
 int init_server();
 void init_users();
