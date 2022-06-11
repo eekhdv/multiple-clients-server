@@ -29,13 +29,10 @@
 #include "server.h"
 #include "utils.h"
 
-#define PORT "8765"
-#define BUFFER_SIZE 65536
-#define MAX_CLIENTS 100
-
 sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
+ROOM rooms[MAX_ROOMS];
 
 void *client_connection(void *vargp) {
 	USER_INFO user = *(USER_INFO *)vargp;
@@ -101,8 +98,59 @@ void init_users() {
 	}
 }
 
+void init_rooms() {
+	for (int i = 0; i < MAX_ROOMS; i++) {
+		rooms[i].room_number = rooms[i].users_limit = -1;
+	}
+}
+
+void ask_username(int sockfd, char username[20]) {
+	char askusername[] = "Enter your username: ";
+	send(sockfd, askusername, strlen(askusername), 0);
+	recv(sockfd, username, 20, 0);
+}
+
+int ask_limit(int room, int sockfd) {
+	char new_room_wow[] = "Wow! There doesn't seem to be such a room! I'll create one...\n";
+	send(sockfd, new_room_wow, strlen(new_room_wow), 0);
+
+	char asklim[] = "Enter the max number of members in the room (max 999): ";
+	send(sockfd, asklim, strlen(asklim), 0);
+
+	char room_limit[3] = {'\0'};
+	recv(sockfd, room_limit, 3, 0);
+	if (is_uint(room_limit)) {
+		rooms[room].users_limit = atoi(room_limit);
+	} else {
+		char *error_message = "[Error] Max number is incorrect\n";
+		send(sockfd, error_message, strlen(error_message), 0);
+		close(sockfd);
+		return 0;
+	}
+	return 1;
+}
+
+
+int create_room(unsigned long long room_number, int sockfd) {
+	int room_place = -1;
+	for (int i = 0; i < MAX_ROOMS; i++) {
+		if (rooms[i].room_number == room_number) {
+			return i;
+		} 
+		if (room_place == (int)rooms[i].room_number) {
+			room_place = i;
+			rooms[i].room_number = room_number;
+		}
+	}
+	if (!ask_limit(room_place, sockfd)) {
+		return -1;
+	}
+	return room_place;
+}
+
 void client_access(int sockfd) {
 	init_users();
+	init_rooms();
 
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
@@ -111,29 +159,35 @@ void client_access(int sockfd) {
 	sem_init(&x, 0, 1);
 
 	int new_fd;
-	int i = 0;
+	int usr = 0;
 	while (1) {
 		if ((new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &addr_size)) == -1) {
 			perror("accept");
 		}
+
 		sem_wait(&x);
 		char askroom[] = "Enter room number: ";
 		send(new_fd, askroom, strlen(askroom), 0);
 		memset(recv_buf, 0, BUFFER_SIZE);
 		recv(new_fd, recv_buf, BUFFER_SIZE, 0);
-		if (is_room_correct(recv_buf)) {
-			int room_number = atoi(recv_buf);
+		if (is_uint(recv_buf)) {
+			int roo = create_room(atoi(recv_buf), new_fd);
+			printf("%d", roo);
+			if (roo == -1) {
+				continue;
+			}
 			char username[20] = {'\0'};
-			char askusername[] = "Enter your username: ";
-			send(new_fd, askusername, strlen(askusername), 0);
-			recv(new_fd, username, 20, 0);
-			users[i] = init_user(new_fd, room_number, username);
+
+			ask_username(new_fd, username);
+			users[usr] = init_user(new_fd, rooms[roo].room_number, username);
 			printf("[Connected] Client(%d) %s\n",
-					users[i].sockfd, users[i].username);
-			pthread_create(&thread_clients[i], NULL, client_connection, &(users[i]));
-			sendtoroom("<- connected to the room ...\n", users[i].username, room_number, new_fd);
+					users[usr].sockfd, users[usr].username);
+
+			pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
+			sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
 			sem_post(&x);
-			i++;
+
+			usr++;
 		} else {
 			char *error_message = "[Error] Room number is incorrect\n";
 			send(new_fd, error_message, strlen(error_message), 0);

@@ -12,4 +12,4 @@
  * limitations under the License.
  */
 
-int is_room_correct(char *room);
+int is_uint(char *room);
