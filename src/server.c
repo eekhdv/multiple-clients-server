@@ -100,7 +100,7 @@ void init_users() {
 void init_rooms() {
 	for (int i = 0; i < MAX_ROOMS; i++) {
 		rooms[i].room_number = rooms[i].users_limit = -1;
-		rooms[i].members_num = 0;
+		rooms[i].members_num = rooms[i].room_exist = 0;
 	}
 }
 
@@ -130,13 +130,23 @@ int ask_limit(int room, int sockfd) {
 	}
 }
 
+int have_places(int room_id) {
+	return rooms[room_id].users_limit != rooms[room_id].members_num;
+}
+
 int create_room(unsigned long long room_number, int sockfd) {
 	int room_place = -1;
 	for (int i = 0; i < MAX_ROOMS; i++) {
 		if (rooms[i].room_number == room_number) {
-			return i;
+			if (have_places(i)) {
+				return i;
+			}
+			char *error_message = "[Error] Room is full :(\n";
+			send(sockfd, error_message, strlen(error_message), 0);
+			close(sockfd);
+			return -1;
 		} 
-		if (room_place == (int)rooms[i].room_number) {
+		if (room_place == -1 && !rooms[i].room_exist) {
 			room_place = i;
 			rooms[i].room_number = room_number;
 		}
@@ -194,6 +204,10 @@ void client_close(int sockfd) {
 	printf("[Disconnected] Client(%d) %s\n", sockfd, users[client_id].username);
 	printf("[ROOM] %llu : %d/%d\n", rooms[room_id].room_number, 
 			rooms[room_id].members_num, rooms[room_id].users_limit);
+	if (rooms[room_id].members_num == 0) {
+		printf("Room #%llu is empty, so deleting the room.\n", rooms[room_id].room_number);
+		rooms[room_id].room_exist = 0;	
+	}
 	sendtoroom("<- left the room ...\n", users[client_id].username, users[client_id].room_number, sockfd);
 	close(sockfd);
 }
@@ -223,6 +237,7 @@ void* start_user_thread(void *vargp) {
 			if (roo == -1) {
 				pthread_exit(NULL);
 			}
+			rooms[roo].room_exist = 1;
 			char username[20] = {'\0'};
 
 			ask_username(new_fd, username);
