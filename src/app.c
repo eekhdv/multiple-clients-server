@@ -13,6 +13,7 @@
  */
 
 #include "server.h"
+#include "init.h"
 
 int main(void) {
 	int sockfd = init_server();

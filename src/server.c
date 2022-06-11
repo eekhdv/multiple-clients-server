@@ -27,6 +27,7 @@
 
 #include "server.h"
 #include "utils.h"
+#include "init.h"
 
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
@@ -48,61 +49,7 @@ void *client_connection(void *vargp) {
 	pthread_exit(NULL);
 }
 
-int init_server() {
-	int status, sockfd, yes = 1; 
-	struct addrinfo *servinfo;
-	struct addrinfo hints = {
-		.ai_family = AF_INET,   // use AF_INET and AF_INET6 for iPv4 and iPv6 respectively
-		.ai_socktype = SOCK_STREAM, // use TCP type
-		.ai_flags = AI_PASSIVE, 
-	};
-	if ((status = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo error: %s", gai_strerror(status));
-		exit(1);
-	}
-	if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1) {
-		perror("socket"); // _fd for file descriptor
-	}
-	/* fun fact:
-	 * PF_INET == AF_INET, but P is protocol and A is address. 
-	 * Difference is that Address Family (AF) might support several protocols were reffered by their Protocol Family (PF)
-	 * */
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes)) {
-		perror("setsockopt");
-	}
-	if (bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen) < 0) {
-		perror("bind failed");
-	}
-	freeaddrinfo(servinfo);
-	if (listen(sockfd, 10) < 0) {
-		perror("listen");
-	}
-	return sockfd;
-}
 
-USER_INFO init_user(int sockfd, int room_number, char *username) {
-	USER_INFO user = {
-		.sockfd = sockfd,
-		.room_number = room_number,
-	};
-	strcpy(user.username, username);
-	user.username[strlen(username) - 1] = '\0';
-	return user;
-}
-
-void init_users() {
-	for (int i = 0; i < MAX_CLIENTS; i++) {
-		users[i].sockfd = -1;
-		memset(users[i].username, 0, 20);
-	}
-}
-
-void init_rooms() {
-	for (int i = 0; i < MAX_ROOMS; i++) {
-		rooms[i].room_number = rooms[i].users_limit = -1;
-		rooms[i].members_num = rooms[i].room_exist = 0;
-	}
-}
 
 void ask_username(int sockfd, char username[20]) {
 	char askusername[] = "Enter your username: ";
@@ -158,8 +105,8 @@ int create_room(unsigned long long room_number, int sockfd) {
 }
 
 void client_access(int sockfd) {
-	init_users();
-	init_rooms();
+	init_users(users);
+	init_rooms(rooms);
 
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
