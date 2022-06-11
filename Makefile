@@ -1,8 +1,7 @@
 CC=gcc
-RM=rm -f
 
 WARNING=-Wall -Wextra -Werror
-FLAGS=$(WARNING) -lpthread -O2
+FLAGS=$(WARNING) -pthread -O2
 SRC_BACKGROUND=src/server.c src/utils.c 
 SRC=src/app.c $(SRC_BACKGROUND)
 
