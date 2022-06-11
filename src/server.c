@@ -24,12 +24,10 @@
 
 #include <unistd.h>
 #include <pthread.h>
-#include <semaphore.h>
 
 #include "server.h"
 #include "utils.h"
 
-sem_t x;
 pthread_t thread_clients[MAX_CLIENTS];
 USER_INFO users[MAX_CLIENTS];
 ROOM rooms[MAX_ROOMS];
@@ -155,8 +153,6 @@ void client_access(int sockfd) {
 
 	struct sockaddr_storage their_addr;
 	socklen_t addr_size = sizeof their_addr;
-
-	sem_init(&x, 0, 1);
 
 	int new_fd;
 	int start_usr = 0;
