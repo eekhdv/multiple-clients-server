@@ -42,8 +42,8 @@ void *client_connection(void *vargp) {
 	char buffer[BUFFER_SIZE] = {'\0'};
 	while (1) {
 		memset(buffer, 0, BUFFER_SIZE);
-		recv(user.sockfd, buffer, BUFFER_SIZE, 0);
-		if (strcmp(buffer, "/exit\n") == 0) {
+		int nbytes = recv(user.sockfd, buffer, BUFFER_SIZE, 0);
+		if (strcmp(buffer, "/exit\n") == 0 || nbytes <= 0) {
 			client_close(user.sockfd);
 			break;
 		} 
