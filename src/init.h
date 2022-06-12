@@ -12,17 +12,27 @@
  * limitations under the License.
  */
 
-void *client_connection(void *vargp);
-void *start_user_thread(void *vargp);
-void client_close(int sockfd);
-void client_access(int sockfd);
+#include <pthread.h>
 
-void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
+typedef struct {
+	char username[20];
+	int room_number;
+	int sockfd;
+} USER_INFO;
 
-void ask_username(int sockfd, char username[20]);
-int ask_limit(int room, int sockfd);
-int create_room(unsigned long long room_number, int sockfd);
+typedef struct {
+	unsigned long long room_number;
+	int users_limit;
+	int members_num;
+	short room_exist;
+} ROOM;
 
-int have_places(int room_id);
-int get_room_id(int room_number);
-int get_client_id(int sockfd);
+#define PORT "8765"
+#define BUFFER_SIZE 65536
+#define MAX_CLIENTS 100
+#define MAX_ROOMS 100
+
+int init_server();
+void init_rooms(ROOM rooms[]);
+void init_users(USER_INFO users[]);
+USER_INFO init_user(int sockfd, int room_number, char *username);
