@@ -79,7 +79,7 @@ USER_INFO init_user(int sockfd, int room_number, char *username) {
 		.room_number = room_number,
 	};
 	strcpy(user.username, username);
-	user.username[strlen(username) - 1] = '\0';
+	user.username[strlen(username)] = '\0';
 	return user;
 }
 

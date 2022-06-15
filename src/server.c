@@ -61,7 +61,7 @@ int ask_limit(int room, int sockfd) {
 	char new_room_wow[] = "Wow! There doesn't seem to be such a room! I'll create one...\n";
 	send(sockfd, new_room_wow, strlen(new_room_wow), 0);
 
-	char asklim[] = "Enter the max number of members in the room (max 999): ";
+	char asklim[] = "Enter the max number of members in the room (max 999): \n";
 	send(sockfd, asklim, strlen(asklim), 0);
 
 	char room_limit[3] = {'\0'};
@@ -198,6 +198,7 @@ void* start_user_thread(void *vargp) {
 
 			usr++;
 		} else {
+			printf("%s", recv_buf);
 			char *error_message = "[Error] Room number is incorrect\n";
 			send(new_fd, error_message, strlen(error_message), 0);
 			close(new_fd);
