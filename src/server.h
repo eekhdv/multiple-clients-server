@@ -2,9 +2,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -12,12 +12,12 @@
  * limitations under the License.
  */
 
-void *client_connection(void *vargp);
-void *start_user_thread(void *vargp);
+void* client_connection(void* vargp);
+void* start_user_thread(void* vargp);
 void client_close(int sockfd);
 void client_access(int sockfd);
 
-void sendtoroom(char *message, char *sendername, int room_number, int sendersfd);
+void sendtoroom(char* message, char* sendername, int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
 int ask_limit(int room, int sockfd);
