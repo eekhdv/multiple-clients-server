@@ -19,7 +19,8 @@ int main(void)
 {
     int sockfd = init_server();
 
-    client_access(sockfd);
+    SERVER* serv = create_server(sockfd);
 
+    server_run(serv, sockfd);
     return 0;
 }
