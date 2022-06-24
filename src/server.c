@@ -165,16 +165,22 @@ void client_close(int sockfd)
     close(sockfd);
 }
 
+char* message_with_sendername(char* sendername, char* message)
+{
+    char* new_message = calloc(BUFFER_SIZE + 30, sizeof(char));
+    strcat(new_message, sendername);
+    new_message[strlen(new_message) - 1] = ' '; /* last char in sendername is '\n', so "-1" */
+    strcat(new_message, message);
+    return new_message;
+}
+
 void sendtoroom(char* message, char* sendername, int room_number, int sendersfd)
 {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         if (users[i].room_number == room_number && users[i].sockfd != -1 && users[i].sockfd != sendersfd) {
-            char senders_name[30] = { '\0' };
-            senders_name[0] = '[';
-            strcat(senders_name, sendername);
-            strcat(senders_name, "] ");
-            send(users[i].sockfd, senders_name, strlen(senders_name), 0);
-            send(users[i].sockfd, message, strlen(message), 0);
+            char* new_message = message_with_sendername(sendername, message);
+            send(users[i].sockfd, new_message, strlen(new_message), 0);
+            free(new_message);
         }
     }
 }
