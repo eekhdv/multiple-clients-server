@@ -21,8 +21,7 @@ void client_close(SERVER *serv, int sockfd);
 void server_run(SERVER *serv, int sockfd);
 SERVER *create_server(int sockfd);
 
-void sendtoroom(SERVER *serv, char* message, char* sendername,
-    int room_number, int sendersfd);
+void sendtoroom(SERVER *serv, char* message, char* sendername, int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
 int ask_limit(SERVER *serv, int room, int sockfd);
