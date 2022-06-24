@@ -61,24 +61,27 @@ int init_server()
     return sockfd;
 }
 
-void init_users(USER_INFO users[])
+USER_INFO* init_users()
 {
+    USER_INFO* users = malloc(sizeof *users * MAX_CLIENTS);
     for (int i = 0; i < MAX_CLIENTS; i++) {
         users[i].sockfd = -1;
         memset(users[i].username, 0, 20);
     }
+    return users;
 }
 
-void init_rooms(ROOM rooms[])
+ROOM* init_rooms()
 {
+    ROOM* rooms = malloc(sizeof *rooms * MAX_ROOMS);
     for (int i = 0; i < MAX_ROOMS; i++) {
         rooms[i].room_number = rooms[i].users_limit = -1;
         rooms[i].members_num = rooms[i].room_exist = 0;
     }
+    return rooms;
 }
 
-USER_INFO
-init_user(int sockfd, int room_number, char* username)
+USER_INFO init_user(int sockfd, int room_number, char* username)
 {
     USER_INFO user = {
         .sockfd = sockfd,
@@ -87,4 +90,10 @@ init_user(int sockfd, int room_number, char* username)
     strcpy(user.username, username);
     user.username[strlen(username)] = '\0';
     return user;
+}
+
+pthread_t* init_clients_thread()
+{
+    pthread_t* thread_clients = malloc(sizeof *thread_clients * MAX_CLIENTS);
+    return thread_clients;
 }
