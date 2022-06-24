@@ -15,4 +15,4 @@ Once connected, the server will ask you for:
 - username (char set)
 > You can create multiple connections using netcat
 ### Disconnect from the server
-Send '/exit'
+Send '/exit' or <C-c>
