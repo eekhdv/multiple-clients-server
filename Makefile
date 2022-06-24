@@ -7,12 +7,11 @@ SRC_BACKGROUND=src/server.c src/utils.c src/init.c
 SRC=src/app.c $(SRC_BACKGROUND)
 CODE_STYLE=-style="WebKit"
 
-DEPS=$(SRC) src/server.h src/utils.h src/init.h
 BINARY=./app
 
-$(BINARY): $(DEPS)
-	$(CC) $(FLAGS) $(DEPS) -o $@
+$(BINARY): $(SRC)
+	$(CC) $(FLAGS) $(SRC) -o $@
 
 .PHONY: format
 format: $(DEPS)
-	$(CLANG_FORMAT) -i $(CODE_STYLE) $(DEPS)
+	$(CLANG_FORMAT) -i $(CODE_STYLE) $(SRC)
