@@ -29,23 +29,28 @@
 #include "server.h"
 #include "utils.h"
 
-pthread_t thread_clients[MAX_CLIENTS];
-USER_INFO users[MAX_CLIENTS];
-ROOM rooms[MAX_ROOMS];
-int usr;
+struct user_start {
+    int new_fd;
+    SERVER* serv;
+};
+
+struct client_conn {
+    USER_INFO user;
+    SERVER* serv;
+};
 
 void* client_connection(void* vargp)
 {
-    USER_INFO user = *(USER_INFO*)vargp;
+    struct client_conn conn_thread = *(struct client_conn*)vargp;
     char buffer[BUFFER_SIZE] = { '\0' };
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
-        int nbytes = recv(user.sockfd, buffer, BUFFER_SIZE, 0);
+        int nbytes = recv(conn_thread.user.sockfd, buffer, BUFFER_SIZE, 0);
         if (strcmp(buffer, "/exit\n") == 0 || nbytes <= 0) {
-            client_close(user.sockfd);
+            client_close(conn_thread.serv, conn_thread.user.sockfd);
             break;
         }
-        sendtoroom(buffer, user.username, user.room_number, user.sockfd);
+        sendtoroom(conn_thread.serv, buffer, conn_thread.user.username, conn_thread.user.room_number, conn_thread.user.sockfd);
     }
     pthread_exit(NULL);
 }
@@ -57,7 +62,7 @@ void ask_username(int sockfd, char username[20])
     recv(sockfd, username, 20, 0);
 }
 
-int ask_limit(int room, int sockfd)
+int ask_limit(SERVER* serv, int room, int sockfd)
 {
     char new_room_wow[] = "Wow! There doesn't seem to be such a room! I'll create one...\n";
     send(sockfd, new_room_wow, strlen(new_room_wow), 0);
@@ -68,7 +73,7 @@ int ask_limit(int room, int sockfd)
     char room_limit[3] = { '\0' };
     recv(sockfd, room_limit, 3, 0);
     if (is_uint(room_limit)) {
-        rooms[room].users_limit = atoi(room_limit);
+        serv->rooms[room].users_limit = atoi(room_limit);
         return 1;
     } else {
         char* error_message = "[Error] Max number is incorrect\n";
@@ -78,17 +83,17 @@ int ask_limit(int room, int sockfd)
     }
 }
 
-int have_places(int room_id)
+int have_places(SERVER* serv, int room_id)
 {
-    return rooms[room_id].users_limit != rooms[room_id].members_num;
+    return serv->rooms[room_id].users_limit != serv->rooms[room_id].members_num;
 }
 
-int create_room(unsigned long long room_number, int sockfd)
+int create_room(SERVER* serv, unsigned long long room_number, int sockfd)
 {
     int room_place = -1;
     for (int i = 0; i < MAX_ROOMS; i++) {
-        if (rooms[i].room_number == room_number) {
-            if (have_places(i)) {
+        if (serv->rooms[i].room_number == room_number) {
+            if (have_places(serv, i)) {
                 return i;
             }
             char* error_message = "[Error] Room is full :(\n";
@@ -96,22 +101,19 @@ int create_room(unsigned long long room_number, int sockfd)
             close(sockfd);
             return -1;
         }
-        if (room_place == -1 && !rooms[i].room_exist) {
+        if (room_place == -1 && !serv->rooms[i].room_exist) {
             room_place = i;
-            rooms[i].room_number = room_number;
+            serv->rooms[i].room_number = room_number;
         }
     }
-    if (!ask_limit(room_place, sockfd)) {
+    if (!ask_limit(serv, room_place, sockfd)) {
         return -1;
     }
     return room_place;
 }
 
-void client_access(int sockfd)
+void server_run(SERVER* serv, int sockfd)
 {
-    init_users(users);
-    init_rooms(rooms);
-
     struct sockaddr_storage their_addr;
     socklen_t addr_size = sizeof their_addr;
 
@@ -123,45 +125,49 @@ void client_access(int sockfd)
             perror("accept");
             continue;
         }
-        pthread_create(&thread_start_user[start_usr++], NULL, start_user_thread, &(new_fd));
+        struct user_start user_thread = {
+            .new_fd = new_fd,
+            .serv = serv,
+        };
+        pthread_create(&thread_start_user[start_usr++], NULL, start_user_thread, &(user_thread));
 
         sleep(1);
     }
 }
 
-int get_room_id(int room_number)
+int get_room_id(SERVER* serv, int room_number)
 {
     for (int i = 0; i < MAX_ROOMS; i++) {
-        if ((int)rooms[i].room_number == room_number) {
+        if ((int)serv->rooms[i].room_number == room_number) {
             return i;
         }
     }
     return -1;
 }
 
-int get_client_id(int sockfd)
+int get_client_id(SERVER* serv, int sockfd)
 {
     for (int i = 0; i < 100; i++) {
-        if (users[i].sockfd == sockfd) {
+        if (serv->users[i].sockfd == sockfd) {
             return i;
         }
     }
     return -1;
 }
 
-void client_close(int sockfd)
+void client_close(SERVER* serv, int sockfd)
 {
-    int client_id = get_client_id(sockfd);
-    users[client_id].sockfd = -1;
-    int room_id = get_room_id(users[client_id].room_number);
-    rooms[room_id].members_num--;
-    printf("[Disconnected] Client(%d) %s\n", sockfd, users[client_id].username);
-    printf("[ROOM] %llu : %d/%d\n", rooms[room_id].room_number, rooms[room_id].members_num, rooms[room_id].users_limit);
-    if (rooms[room_id].members_num == 0) {
-        printf("Room #%llu is empty, so deleting the room.\n", rooms[room_id].room_number);
-        rooms[room_id].room_exist = 0;
+    int client_id = get_client_id(serv, sockfd);
+    serv->users[client_id].sockfd = -1;
+    int room_id = get_room_id(serv, serv->users[client_id].room_number);
+    serv->rooms[room_id].members_num--;
+    printf("[Disconnected] Client(%d) %s\n", sockfd, serv->users[client_id].username);
+    printf("[ROOM] %llu : %d/%d\n", serv->rooms[room_id].room_number, serv->rooms[room_id].members_num, serv->rooms[room_id].users_limit);
+    if (serv->rooms[room_id].members_num == 0) {
+        printf("Room #%llu is empty, so deleting the room.\n", serv->rooms[room_id].room_number);
+        serv->rooms[room_id].room_exist = 0;
     }
-    sendtoroom("<- left the room ...\n", users[client_id].username, users[client_id].room_number, sockfd);
+    sendtoroom(serv, "<- left the room ...\n", serv->users[client_id].username, serv->users[client_id].room_number, sockfd);
     close(sockfd);
 }
 
@@ -174,12 +180,12 @@ char* message_with_sendername(char* sendername, char* message)
     return new_message;
 }
 
-void sendtoroom(char* message, char* sendername, int room_number, int sendersfd)
+void sendtoroom(SERVER* serv, char* message, char* sendername, int room_number, int sendersfd)
 {
     for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (users[i].room_number == room_number && users[i].sockfd != -1 && users[i].sockfd != sendersfd) {
+        if (serv->users[i].room_number == room_number && serv->users[i].sockfd != -1 && serv->users[i].sockfd != sendersfd) {
             char* new_message = message_with_sendername(sendername, message);
-            send(users[i].sockfd, new_message, strlen(new_message), 0);
+            send(serv->users[i].sockfd, new_message, strlen(new_message), 0);
             free(new_message);
         }
     }
@@ -187,34 +193,48 @@ void sendtoroom(char* message, char* sendername, int room_number, int sendersfd)
 
 void* start_user_thread(void* vargp)
 {
-    int new_fd = *(int*)vargp;
-    char recv_buf[BUFFER_SIZE];
-    char askroom[] = "Enter room number: ";
-    send(new_fd, askroom, strlen(askroom), 0);
-    memset(recv_buf, 0, BUFFER_SIZE);
-    recv(new_fd, recv_buf, BUFFER_SIZE, 0);
+    struct user_start user_thread = *(struct user_start*)vargp;
+    send(user_thread.new_fd, "Enter room number: ", 20, 0);
+
+    char recv_buf[BUFFER_SIZE] = { '\0' };
+    recv(user_thread.new_fd, recv_buf, BUFFER_SIZE, 0);
     if (is_uint(recv_buf)) {
-        int roo = create_room(atoi(recv_buf), new_fd);
+        int roo = create_room(user_thread.serv, atoi(recv_buf), user_thread.new_fd);
         if (roo == -1) {
             pthread_exit(NULL);
         }
-        rooms[roo].room_exist = 1;
+        user_thread.serv->rooms[roo].room_exist = 1;
         char username[20] = { '\0' };
 
-        ask_username(new_fd, username);
-        users[usr] = init_user(new_fd, rooms[roo].room_number, username);
-        pthread_create(&thread_clients[usr], NULL, client_connection, &(users[usr]));
-        rooms[roo].members_num++;
-        printf("[Connected] Client(%d) %s\n", users[usr].sockfd, users[usr].username);
-        printf("[ROOM] %llu : %d/%d\n", rooms[roo].room_number, rooms[roo].members_num, rooms[roo].users_limit);
-        sendtoroom("<- connected to the room ...\n", users[usr].username, rooms[roo].room_number, new_fd);
+        ask_username(user_thread.new_fd, username);
+        user_thread.serv->users[user_thread.serv->usr] = init_user(user_thread.new_fd, user_thread.serv->rooms[roo].room_number, username);
+        struct client_conn conn_thread = {
+            .user = user_thread.serv->users[user_thread.serv->usr],
+            .serv = user_thread.serv,
+        };
+        pthread_create(&user_thread.serv->thread_clients[user_thread.serv->usr], NULL, client_connection, &(conn_thread));
+        user_thread.serv->rooms[roo].members_num++;
 
-        usr++;
+        printf("[Connected] Client(%d) %s\n", user_thread.serv->users[user_thread.serv->usr].sockfd, user_thread.serv->users[user_thread.serv->usr].username);
+        printf("[ROOM] %llu : %d/%d\n", user_thread.serv->rooms[roo].room_number, user_thread.serv->rooms[roo].members_num, user_thread.serv->rooms[roo].users_limit);
+        sendtoroom(user_thread.serv, "<- connected to the room ...\n", user_thread.serv->users[user_thread.serv->usr].username, user_thread.serv->rooms[roo].room_number, user_thread.new_fd);
+
+        user_thread.serv->usr++;
     } else {
         printf("%s", recv_buf);
         char* error_message = "[Error] Room number is incorrect\n";
-        send(new_fd, error_message, strlen(error_message), 0);
-        close(new_fd);
+        send(user_thread.new_fd, error_message, strlen(error_message), 0);
+        close(user_thread.new_fd);
     }
     pthread_exit(NULL);
+}
+
+SERVER* create_server(int sockfd)
+{
+    SERVER* serv = malloc(sizeof *serv);
+    serv->thread_clients = init_clients_thread();
+    serv->rooms = init_rooms();
+    serv->users = init_users();
+    serv->serverfd = sockfd;
+    return serv;
 }

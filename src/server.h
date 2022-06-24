@@ -12,17 +12,22 @@
  * limitations under the License.
  */
 
+#pragma once
+#include "init.h"
+
 void* client_connection(void* vargp);
 void* start_user_thread(void* vargp);
-void client_close(int sockfd);
-void client_access(int sockfd);
+void client_close(SERVER *serv, int sockfd);
+void server_run(SERVER *serv, int sockfd);
+SERVER *create_server(int sockfd);
 
-void sendtoroom(char* message, char* sendername, int room_number, int sendersfd);
+void sendtoroom(SERVER *serv, char* message, char* sendername,
+    int room_number, int sendersfd);
 
 void ask_username(int sockfd, char username[20]);
-int ask_limit(int room, int sockfd);
-int create_room(unsigned long long room_number, int sockfd);
+int ask_limit(SERVER *serv, int room, int sockfd);
+int create_room(SERVER *serv, unsigned long long room_number, int sockfd);
 
-int have_places(int room_id);
-int get_room_id(int room_number);
-int get_client_id(int sockfd);
+int have_places(SERVER *serv, int room_id);
+int get_room_id(SERVER *serv, int room_number);
+int get_client_id(SERVER *serv, int sockfd);

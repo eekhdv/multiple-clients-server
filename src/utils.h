@@ -12,4 +12,6 @@
  * limitations under the License.
  */
 
+#pragma once
+
 int is_uint(char* room);
